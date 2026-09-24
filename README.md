@@ -2,9 +2,6 @@
 
 A browser-based guitar tab writer that mirrors physical manuscript paper. Built with pure HTML, CSS, and JavaScript, it provides an intuitive grid-based editing experience optimized for US Letter page layouts and PDF exports.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Stack](https://img.shields.io/badge/tech-HTML5%20%7C%20CSS3%20%7C%20JS-orange)
-
 ---
 
 ## ✨ Features
@@ -21,5 +18,32 @@ A browser-based guitar tab writer that mirrors physical manuscript paper. Built 
 ## 🚀 Getting Started
 
 1. **Clone the repository:**
-   ```bash
    git clone [https://github.com/your-username/guitar-tab-editor.git](https://github.com/your-username/guitar-tab-editor.git)
+
+2. **Open the app:**
+   Simply double-click `index.html` or open it in any modern web browser.
+
+---
+
+## ⌨️ How to Use
+
+| Action | Control |
+| :--- | :--- |
+| **Navigate Grid** | Arrow Keys (`Up`, `Down`, `Left`, `Right`) |
+| **Enter Fret** | Type numbers (`0`–`24`) on any string |
+| **Add Barline** | Press `|` or click the **Insert Barline** button |
+| **Export File** | Click **Export PDF** to save a printable 2-page document |
+
+---
+
+## 🛠️ Built With
+
+* Plain HTML5 / CSS3 (Flexbox & CSS Grid)
+* Vanilla JavaScript (DOM manipulation & event handling)
+* [html2pdf.js](https://github.com/eKoopmans/html2pdf.js) — Client-side HTML to PDF rendering
+
+---
+
+## 📜 License
+
+This project is open-source and available under the [MIT License](LICENSE).
