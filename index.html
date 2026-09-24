@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebTab Pro - US Letter Tab Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #cbd5e1; /* Slate 300 for desk background */
+        }
+        
+        .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Paper dimensions for US Letter (8.5 x 11) scaled for web */
+        .paper {
+            width: 8.5in;
+            height: 11in;
+            background-color: #ffffff;
+            box-sizing: border-box;
+            overflow: hidden;
+            margin: 0 auto;
+            padding: 0.5in;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Custom inputs for tablature */
+        .tab-input {
+            caret-color: transparent;
+            background: transparent;
+        }
+        .tab-input:focus {
+            caret-color: #2563eb; 
+            background-color: #eff6ff; /* blue-50 */
+            outline: none;
+            z-index: 10;
+        }
+
+        /* Hide scrollbars but allow scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center pt-24 pb-12 overflow-x-auto text-slate-800">
+
+    <header class="fixed top-0 left-0 right-0 bg-slate-900 text-white shadow-lg z-50 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+            <h1 class="text-xl font-semibold tracking-wide">WebTab Pro</h1>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <button id="btn-barline" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-medium py-2 px-4 rounded-md transition-colors" title="Insert a barline (|) at current cursor">
+                <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16"></path></svg>
+                Insert Barline
+            </button>
+            <button id="btn-clear" class="flex items-center gap-2 bg-slate-800 hover:bg-red-900/90 border border-slate-600 hover:border-red-700 hover:text-red-50 text-sm font-medium py-2 px-4 rounded-md transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Clear Page
+            </button>
+            <button id="btn-export-pdf" class="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                Export PDF
+            </button>
+            <button id="btn-export" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                Export to Text
+            </button>
+        </div>
+    </header>
+
+    <div class="fixed bottom-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow border border-slate-200 text-xs text-slate-600 z-40">
+        <strong>Shortcuts:</strong> <kbd class="px-1 bg-slate-100 border rounded">Arrows</kbd> Move • <kbd class="px-1 bg-slate-100 border rounded">|</kbd> Barline • <kbd class="px-1 bg-slate-100 border rounded">h</kbd> Hammer • <kbd class="px-1 bg-slate-100 border rounded">p</kbd> Pull
+    </div>
+
+    <div id="document-wrapper" class="w-full flex flex-col gap-8 items-center select-none pb-8">
+        <!-- Pages will be dynamically injected here -->
+    </div>
+
+    <div id="export-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[60] p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-full">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+                <h3 class="font-semibold text-lg">Exported Tablature</h3>
+                <button id="btn-close-modal" class="text-slate-400 hover:text-slate-600 bg-slate-200 hover:bg-slate-300 rounded p-1 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-4 flex-grow overflow-hidden flex flex-col">
+                <textarea id="export-text" class="w-full flex-grow min-h-[400px] font-mono text-sm p-5 bg-slate-900 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-pre overflow-x-auto no-scrollbar" readonly></textarea>
+            </div>
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button id="btn-copy" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-md transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const documentWrapper = document.getElementById('document-wrapper');
+        const PAGES_COUNT = 2;
+        const STAVES_PER_PAGE = 5;
+        const STAVES_COUNT = PAGES_COUNT * STAVES_PER_PAGE;
+        const STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
+        // Paper width: 850px. Padding 12 (3rem * 2 = 96px). Inner width: 754px.
+        // Label width: ~34px. Usable width: ~720px. 
+        // 36 columns * 20px = 720px. Perfect fit.
+        const COLS_PER_STAVE = 36; 
+        
+        let lastFocusedInput = null;
+
+        function initializePaper() {
+            documentWrapper.innerHTML = '';
+            
+            for (let pageIdx = 0; pageIdx < PAGES_COUNT; pageIdx++) {
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'paper shadow-2xl rounded-sm relative';
+                // Force a page break after the first page for the PDF export
+                if (pageIdx < PAGES_COUNT - 1) {
+                    pageDiv.style.pageBreakAfter = 'always';
+                }
+                
+                for (let i = 0; i < STAVES_PER_PAGE; i++) {
+                    const staveIdx = pageIdx * STAVES_PER_PAGE + i;
+                    const staveDiv = document.createElement('div');
+                    staveDiv.className = 'w-full flex flex-col gap-[2px] py-4'; // Spacing between strings
+                    
+                    STRINGS.forEach((strName, strIdx) => {
+                        const stringRow = document.createElement('div');
+                        stringRow.className = 'flex items-center relative h-6 group';
+                        
+                        // The continuous visual string line
+                        const line = document.createElement('div');
+                        line.className = 'absolute left-6 right-0 h-[1px] bg-slate-400 z-0 top-1/2 -translate-y-1/2 pointer-events-none group-hover:bg-slate-600 transition-colors';
+                        stringRow.appendChild(line);
+                        
+                        // The string label
+                        const label = document.createElement('div');
+                        label.className = 'w-6 flex-shrink-0 font-mono text-sm font-bold text-slate-600 z-10 bg-white leading-none pr-1';
+                        label.innerText = strName;
+                        stringRow.appendChild(label);
+                        
+                        // The input columns
+                        for (let colIdx = 0; colIdx < COLS_PER_STAVE; colIdx++) {
+                            const inputWrapper = document.createElement('div');
+                            inputWrapper.className = 'w-[19px] flex justify-center z-10 bg-white mx-[0.5px]';
+                            
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.maxLength = 2;
+                            // Data attributes for grid coordinates
+                            input.dataset.stave = staveIdx;
+                            input.dataset.str = strIdx;
+                            input.dataset.col = colIdx;
+                            
+                            input.className = 'tab-input w-full h-5 font-mono text-[13px] text-center leading-none border border-transparent rounded-sm placeholder-transparent';
+                            
+                            inputWrapper.appendChild(input);
+                            stringRow.appendChild(inputWrapper);
+                        }
+                        staveDiv.appendChild(stringRow);
+                    });
+                    
+                    pageDiv.appendChild(staveDiv);
+                }
+                documentWrapper.appendChild(pageDiv);
+            }
+        }
+
+        documentWrapper.addEventListener('keydown', (e) => {
+            if (e.target.tagName !== 'INPUT') return;
+            
+            const stave = parseInt(e.target.dataset.stave);
+            const str = parseInt(e.target.dataset.str);
+            const col = parseInt(e.target.dataset.col);
+            
+            let nextStave = stave;
+            let nextStr = str;
+            let nextCol = col;
+            let handled = false;
+
+            if (e.key === 'ArrowRight') {
+                if (col < COLS_PER_STAVE - 1) {
+                    nextCol++;
+                } else if (stave < STAVES_COUNT - 1) {
+                    nextStave++;
+                    nextCol = 0;
+                }
+                handled = true;
+            } else if (e.key === 'ArrowLeft') {
+                if (col > 0) {
+                    nextCol--;
+                } else if (stave > 0) {
+                    nextStave--;
+                    nextCol = COLS_PER_STAVE - 1;
+                }
+                handled = true;
+            } else if (e.key === 'ArrowDown') {
+                if (str < 5) {
+                    nextStr++;
+                } else if (stave < STAVES_COUNT - 1) {
+                    nextStave++;
+                    nextStr = 0;
+                }
+                handled = true;
+            } else if (e.key === 'ArrowUp') {
+                if (str > 0) {
+                    nextStr--;
+                } else if (stave > 0) {
+                    nextStave--;
+                    nextStr = 5;
+                }
+                handled = true;
+            } else if (e.key === '|') {
+                // Quick shortcut for barline via keyboard
+                e.preventDefault();
+                insertBarline(stave, col);
+                return;
+            }
+
+            if (handled) {
+                e.preventDefault();
+                const nextInput = document.querySelector(`input[data-stave="${nextStave}"][data-str="${nextStr}"][data-col="${nextCol}"]`);
+                if (nextInput) {
+                    nextInput.focus();
+                    nextInput.select();
+                }
+            }
+        });
+
+        // Tracking focus and input sanitization
+        documentWrapper.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT') {
+                lastFocusedInput = {
+                    stave: parseInt(e.target.dataset.stave),
+                    str: parseInt(e.target.dataset.str),
+                    col: parseInt(e.target.dataset.col)
+                };
+                e.target.select();
+            }
+        });
+
+        documentWrapper.addEventListener('input', (e) => {
+            if (e.target.tagName !== 'INPUT') return;
+            // Allow numbers, h, p, x, /, \, ~, and |
+            let val = e.target.value;
+            val = val.replace(/[^0-9hpx\/\\~\|]/gi, '');
+            e.target.value = val;
+        });
+
+        function insertBarline(stave, col) {
+            // Apply '|' to all strings in the specific stave and column
+            for (let i = 0; i < 6; i++) {
+                const input = document.querySelector(`input[data-stave="${stave}"][data-str="${i}"][data-col="${col}"]`);
+                if (input) {
+                    input.value = '|';
+                }
+            }
+            
+            // Advance cursor to next column automatically for convenience
+            if (col < COLS_PER_STAVE - 1) {
+                const nextInput = document.querySelector(`input[data-stave="${stave}"][data-str="${lastFocusedInput ? lastFocusedInput.str : 0}"][data-col="${col + 1}"]`);
+                if (nextInput) nextInput.focus();
+            }
+        }
+
+        document.getElementById('btn-barline').addEventListener('click', () => {
+            if (lastFocusedInput) {
+                insertBarline(lastFocusedInput.stave, lastFocusedInput.col);
+            } else {
+                // If no focus, insert at stave 0, col 0
+                insertBarline(0, 0);
+            }
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            const inputs = document.querySelectorAll('.tab-input');
+            inputs.forEach(input => input.value = '');
+            lastFocusedInput = null;
+        });
+
+        const modal = document.getElementById('export-modal');
+        const exportText = document.getElementById('export-text');
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            let output = '';
+            
+            for (let staveIdx = 0; staveIdx < STAVES_COUNT; staveIdx++) {
+                let staveOutput = '';
+                // Check if the stave is completely empty to optionally skip it or just render it
+                // We'll render all staves to keep the visual equivalent of the page.
+                
+                for (let strIdx = 0; strIdx < 6; strIdx++) {
+                    let lineStr = STRINGS[strIdx] + ' |';
+                    
+                    for (let colIdx = 0; colIdx < COLS_PER_STAVE; colIdx++) {
+                        const input = document.querySelector(`input[data-stave="${staveIdx}"][data-str="${strIdx}"][data-col="${colIdx}"]`);
+                        const val = input ? input.value.trim() : '';
+                        
+                        // Format uniformly to 3 spaces per column chunk
+                        if (!val) {
+                            lineStr += '---';
+                        } else if (val === '|') {
+                            lineStr += '-|-';
+                        } else if (val.length === 1) {
+                            lineStr += '-' + val + '-';
+                        } else {
+                            // length 2
+                            lineStr += val + '-';
+                        }
+                    }
+                    staveOutput += lineStr + '|\n';
+                }
+                output += staveOutput + '\n\n';
+            }
+            
+            exportText.value = output.trim();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        });
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+
+        document.getElementById('btn-export-pdf').addEventListener('click', () => {
+            const element = document.getElementById('document-wrapper');
+            
+            // Temporarily remove the UI gap between pages to prevent it from bleeding into the PDF
+            element.classList.remove('gap-8');
+            
+            const opt = {
+                margin:       0, 
+                filename:     'my-guitar-tab.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+                pagebreak:    { mode: ['css', 'legacy'] }
+            };
+
+            const btn = document.getElementById('btn-export-pdf');
+            const originalContent = btn.innerHTML;
+            
+            // Visual feedback while generating
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Generating...';
+            btn.disabled = true;
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+                // Restore the visual gap on the screen
+                element.classList.add('gap-8');
+            }).catch(err => {
+                console.error("PDF Generation failed:", err);
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+                element.classList.add('gap-8');
+            });
+        });
+
+        document.getElementById('btn-copy').addEventListener('click', () => {
+            exportText.select();
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('btn-copy');
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-green-500');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.replace('bg-green-600', 'bg-blue-600');
+                    btn.classList.replace('hover:bg-green-500', 'hover:bg-blue-500');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        });
+
+        // Initialize the app
+        initializePaper();
+    </script>
+</body>
+</html>
